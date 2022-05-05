@@ -1,41 +1,59 @@
-package poker
+package poker_test
 
 import (
+	poker "golang_app_test"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCLI(t *testing.T) {
 	t.Run("record chris win from user input", func(t *testing.T) {
 		in := strings.NewReader("Chris wins\n")
-		playerStore := &StubPlayerStore{}
+		playerStore := &poker.StubPlayerStore{}
+		blindAlerter := &SpyBlindAlerter{}
 
-		cli := &CLI{playerStore, in}
+		cli := poker.NewCLI(playerStore, in, blindAlerter)
 		cli.PlayPoker()
 
-		assertPlayerWin(t, playerStore, "Chris")
+		poker.AssertPlayerWin(t, playerStore, "Chris")
 	})
 
 	t.Run("record cleo win from user input", func(t *testing.T) {
 		in := strings.NewReader("Cleo wins\n")
-		playerStore := &StubPlayerStore{}
+		playerStore := &poker.StubPlayerStore{}
+		blindAlerter := &SpyBlindAlerter{}
 
-		cli := &CLI{playerStore, in}
+		cli := poker.NewCLI(playerStore, in, blindAlerter)
 		cli.PlayPoker()
 
-		assertPlayerWin(t, playerStore, "Cleo")
+		poker.AssertPlayerWin(t, playerStore, "Cleo")
 	})
 
+	t.Run("it schedules printing of blind values", func(t *testing.T) {
+		in := strings.NewReader("Chris wins\n")
+		playerStore := &poker.StubPlayerStore{}
+		blindAlerter := &SpyBlindAlerter{}
+
+		cli := poker.NewCLI(playerStore, in, blindAlerter)
+		cli.PlayPoker()
+
+		if len(blindAlerter.alerts) != 1 {
+			t.Fatal("expected a blind alert to be scheduled")
+		}
+	})
 }
 
-func assertPlayerWin(t testing.TB, store *StubPlayerStore, winner string) {
-	t.Helper()
-
-	if len(store.winCalls) != 1 {
-		t.Fatalf("got %d calls to RecordWin want %d", len(store.winCalls), 1)
+type SpyBlindAlerter struct {
+	alerts []struct {
+		scheduledAt time.Duration
+		amount      int
 	}
+}
 
-	if store.winCalls[0] != winner {
-		t.Errorf("did not store correct winner got %q want %q", store.winCalls[0], winner)
-	}
+func (s *SpyBlindAlerter) ScheduleAlertAt(duration time.Duration, amount int) {
+	s.alerts = append(s.alerts, struct {
+		scheduledAt time.Duration
+		amount      int
+	}{duration, amount})
 }
